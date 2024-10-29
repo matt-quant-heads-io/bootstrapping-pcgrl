@@ -17,16 +17,6 @@ np.seterr(all='raise')
 
 def sample_my_expert_transitions():
     data = np.load("/home/jupyter-msiper/bootstrapping_rl/lg_expert_traj_2.npz")
-    # import pdb; pdb.set_trace()
-    # next_obss_array = data["expert_next_observations"].astype(np.float32)
-    # ['actions', 'episode_returns', 'rewards', 'obs', 'episode_starts']
-    
-    # expert_actions = data["actions"].astype(np.int64)
-    # acts = np.array([[np.argmax(a)] for a in expert_actions])
-    # expert_returns = data["episode_returns"].astype(np.float64)
-    # expert_rewards = data["rewards"].astype(np.int64)
-    # expert_obs = data["obs"].astype(np.int64)
-    # expert_starts = data["episode_starts"].astype(np.int)
     expert_actions = data["actions"].astype(np.float64)
     acts = np.array([[np.argmax(a)] for a in expert_actions])
     expert_returns = data["episode_returns"].astype(np.float64)
@@ -34,14 +24,6 @@ def sample_my_expert_transitions():
     expert_obs = data["obs"].astype(np.float64)
     expert_starts = data["episode_starts"].astype(np.float64)
 
-    # NOTE: Floating point error!!
-    # return {
-    #     "actions": expert_actions,
-    #     "episode_returns": expert_returns,
-    #     "rewards": expert_rewards,
-    #     "obs": expert_obs,
-    #     "episode_starts": expert_starts,
-    # }
     return {
         "actions": acts,
         "episode_returns": expert_rewards,

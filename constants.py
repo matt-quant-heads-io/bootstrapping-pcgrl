@@ -3,12 +3,13 @@ import os
 from gym_pcgrl.envs.probs.zelda_prob import ZeldaProblem
 
 
-PROJECT_ROOT = "/home/jupyter-msiper/sweep_testing_pod" #os.environ["PROJECT_ROOT"]
+PROJECT_ROOT = os.environ["PROJECT_ROOT"]
+
 
 # ###################   ZELDA CONSTANTS   ##############################
 
-ZELDA_DATA_ROOT = "/home/jupyter-msiper/bootstrapping_rl/data/zelda" #os.environ["ZELDA_DATA_ROOT"]
-ZELDA_GOAL_MAPS_ROOT = "/home/jupyter-msiper/bootstrapping_rl/goal_maps/zelda" #os.environ["ZELDA_GOAL_MAPS_ROOT"]
+ZELDA_DATA_ROOT = "/home/jupyter-msiper/bootstrapping-pcgrl/data/zelda" #os.environ["ZELDA_DATA_ROOT"]
+ZELDA_GOAL_MAPS_ROOT = "/home/jupyter-msiper/bootstrapping-pcgrl/goal_maps/zelda_expert" #os.environ["ZELDA_GOAL_MAPS_ROOT"]
 DOMAIN_VARS_ZELDA = {
     "tiles_map": {
         "g": "door",
@@ -40,7 +41,7 @@ DOMAIN_VARS_ZELDA = {
         "solid": "g",
         "empty": "h",
     },
-    "goal_maps_filepath": "goal_maps/zelda/zelda_lvl{}.txt",
+    "goal_maps_filepath": "goal_maps/zelda_expert/{}.txt", # "goal_maps/zelda/zelda_lvl{}.txt",
     "env_y": 7,
     "env_x": 11,
     "env_z": None,
@@ -73,11 +74,11 @@ DOMAIN_VARS_ZELDA = {
         # (
         #     "training_dataset_sizes",
         #     [
-        #         200_000,
-        #         400_000,
-        #         600_000,
-        #         800_000,
-        #         1_000_000,
+        #         200000,
+        #         400000,
+        #         600000,
+        #         800000,
+        #         1000000,
         #     ],
         # ),
         ("obs_sizes", [5]),
@@ -96,11 +97,11 @@ DOMAIN_VARS_ZELDA = {
         (
             "training_dataset_sizes",
             [
-                200_000,
-                # 400_000,
-                600_000,
-                # 800_000,
-                1_000_000,
+                200000,
+                # 400000,
+                600000,
+                # 800000,
+                1000000,
             ],
         ),
     ],
@@ -132,7 +133,7 @@ DOMAIN_VARS_ZELDA = {
         (
             "training_dataset_sizes",
             [
-                1_000_000,
+                1000000,
             ],
         ),
     ],
@@ -294,9 +295,9 @@ DOMAIN_VARS_LEGO = {
         (
             "training_dataset_sizes",
             [
-                200_000,
-                600_000,
-                1_000_000,
+                200000,
+                600000,
+                1000000,
             ],
         ),
     ],
@@ -317,7 +318,7 @@ DOMAIN_VARS_LEGO = {
         (
             "training_dataset_sizes",
             [
-                1_000_000,
+                1000000,
             ],
         ),
     ],

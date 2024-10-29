@@ -13,7 +13,8 @@ import numpy as np
 import os
 
 n_steps = 0
-log_dir = './'
+# log_dir = './'
+log_dir = "/home/jupyter-msiper/bootstrapping-pcgrl/data/zelda/models/ppo/5000_1000000_100"
 best_mean_reward, n_steps = -np.inf, 0
 
 def callback(_locals, _globals):
@@ -23,6 +24,7 @@ def callback(_locals, _globals):
     :param _globals: (dict)
     """
     global n_steps, best_mean_reward
+    # import pdb; pdb.set_trace()
     # Print stats every 1000 calls
     if (n_steps + 1) % 10 == 0:
         x, y = ts2xy(load_results(log_dir), 'timesteps')
@@ -49,7 +51,7 @@ def callback(_locals, _globals):
     return True
 
 
-def main(game, representation, experiment, steps, n_cpu, render, logging, **kwargs):
+def train(game, representation, experiment, steps, n_cpu, render, logging, experiment_path, **kwargs):
     env_name = '{}-{}-v0'.format(game, representation)
     exp_name = get_exp_name(game, representation, experiment, **kwargs)
     resume = kwargs.get('resume', False)
@@ -71,12 +73,12 @@ def main(game, representation, experiment, steps, n_cpu, render, logging, **kwar
     global log_dir
     if not resume:
         n = n + 1
-    log_dir = '/home/jupyter-msiper/gym-pcgrl/runs/{}_{}_{}'.format(exp_name, n, 'log')
+    log_dir = '{experiment_path}/{exp_name}_{n}_{log}'.format(experiment_path=experiment_path, exp_name=exp_name, n=n, log='log')
     # import pdb; pdb.set_trace()
     if not resume:
         os.mkdir(log_dir)
     else:
-        model = load_model(log_dir, full_path="/home/jupyter-msiper/gym-pcgrl/runs/zelda_narrow_1_1_log/ppo2_zelda_narrow_100_epochs.zip")
+        model = load_model(log_dir)
     kwargs = {
         **kwargs,
         'render_rank': 0,
@@ -87,7 +89,7 @@ def main(game, representation, experiment, steps, n_cpu, render, logging, **kwar
         used_dir = None
     env = make_vec_envs(env_name, representation, log_dir, n_cpu, **kwargs)
     if not resume or model is None:
-        model = PPO2(policy, env, verbose=1, tensorboard_log="/home/jupyter-msiper/gym-pcgrl/runs")
+        model = PPO2(policy, env, verbose=1, tensorboard_log=experiment_path)
     else:
         model.set_env(env)
     if not logging:
@@ -107,5 +109,5 @@ kwargs = {
     'resume': True
 }
 
-if __name__ == '__main__':
-    main(game, representation, experiment, steps, n_cpu, render, logging, **kwargs)
+# if __name__ == '__main__':
+#     main(game, representation, experiment, steps, n_cpu, render, logging, **kwargs)

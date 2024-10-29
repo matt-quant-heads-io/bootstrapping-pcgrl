@@ -322,7 +322,6 @@ def convert_state_to_int(state, obs_dim=(21,21, 8)):
         for col in range(len(state[0])):
             cell_oh = [0]*8
             cell_oh[int(state[row][col])]=1
-
             # new_row.append(cell_oh)
             new_state_oh.append(cell_oh)
             
@@ -330,7 +329,7 @@ def convert_state_to_int(state, obs_dim=(21,21, 8)):
     return np.array(new_state_oh).reshape(obs_dim)
 
 
-def int_from_oh(state, obs_dim=(21,21, 8)):
+def int_from_oh(state, obs_dim=(21, 21, 8)):
     int_map = []
     new_state_oh = []
     for row in range(len(state)):
@@ -390,16 +389,14 @@ def format_expert_tuple_trajectories_and_save_as_compressed_numpy_archive_and_re
     return expert_observations, expert_actions
 
 
-
-def gen_trajectories():
+def gen_trajectories(id):
     goal_maps_set = [i for i in range(0, len(os.listdir(constants.ZELDA_GOAL_MAPS_ROOT)))]
     random.shuffle(goal_maps_set)
     goal_set_idxs = goal_maps_set
     rng, _ = utils.np_random(None)
-    NUM_EPISODES = 10000
+    NUM_EPISODES = 5000
     PROCESS_STATE_AS_ONEHOT = True
     LEGACY_STABLE_BASELINES_EXPERT_DATASET = True
-    # EPISODES_PER_GOAL = 300
 
     # THIS IS THE ORIGINAL WAY FOR MATCHING GOAL MAPS AND START MAPS!!
     start_maps = [
@@ -445,49 +442,19 @@ def gen_trajectories():
     policy_learner_trajectory = [] # given a state predict an action (classifier)
     
     for epsiode_num, (start_map, goal_map) in enumerate(zip(start_maps, goal_maps)):
-       
-        # output = gen_pod(start_map, goal_map, traj_len, obs_size)
-        
-        # episode_state_position_actions_returns_quadruplets = [(np.array(state), (x,y), action, cum_reward) for (state, (x,y), action), cum_reward  in gen_pod(start_map, goal_map, traj_len, obs_size)]
-        
-        # states, actions, returns = gen_pod(start_map, goal_map, traj_len, obs_size)
         next_states, states, actions, returns, dones, is_starts, rewards = gen_pod_transitions(start_map, goal_map, traj_len, obs_size)
         for next_state, state, action, ret, done, is_start, reward in zip(next_states, states, actions, returns, dones, is_starts, rewards):
             reward_approximator_trajectory.append({
-                    "next_state": next_state,
-                    "state": state,
-                    "action": action,
-                    "return": ret,
-                    "done": done,
-                    "is_start": is_start,
-                    "rewards": reward
+                "next_state": next_state,
+                "state": state,
+                "action": action,
+                "return": ret,
+                "done": done,
+                "is_start": is_start,
+                "rewards": reward
             })
-        
-        # for idx, (state, (x,y), action), cum_reward in enumerate(zip(state_pos_action, returns)):
-        #     is_start_of_episode = idx == 0
-        #     is_end_of_episode = idx == traj_len - 1
-        #     current_state = state
-        #     new_state = current_state.copy()
-        #     new_state_row = new_state[x]
-        #     new_state_row[y] = action
-    
-        #     # TODO: Uncomment this to train a reward learning agent (i.e. reward approximator).
-        #     # reward = ZELDA_PROBLEM_OBJ.get_reward(ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(new_state)), ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(current_state)))
-        #     is_terminal_state = ZELDA_PROBLEM_OBJ.get_reward(ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(new_state)), ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(current_state)))
-        #     # print(f"cum_reward: {cum_reward}")
-        #     reward_approximator_trajectory.append({
-        #         "state": str_arr_from_int_arr(current_state),
-        #         "action": str(STR_FROM_INT_MAPPPING[action]),
-        #         "reward": float(cum_rewards[idx]),
-        #         # "is_start_of_episode": is_start_of_episode,
-        #         # "is_end_of_episode": is_end_of_episode,
-        #         # "is_terminal_state": int(is_terminal_state)
-        #     })
-    
-        #     policy_learner_trajectory.append({
-        #         "state": current_state,
-        #         "action": action
-        #     })
+
+        print(f"generated {epsiode_num+1} episodes")
     
     tuple_trajectories = []
     for json_dict in reward_approximator_trajectory:
@@ -500,9 +467,6 @@ def gen_trajectories():
         else:
             tuple_trajectories.append((json_dict["next_state"], json_dict["state"], json_dict["action"], np.array([ret]), np.array([done]), np.array([json_dict["is_start"]]), np.array([json_dict["rewards"]])))
     
-    
-    
-    
     random.shuffle(tuple_trajectories)
 
     if PROCESS_STATE_AS_ONEHOT:
@@ -512,9 +476,7 @@ def gen_trajectories():
     else:
         expert_observations = np.empty((len(tuple_trajectories),) + (21,21,))
         expert_next_observations = np.empty((len(tuple_trajectories),) + (21,21,))
-        expert_actions = np.empty((len(tuple_trajectories),) + (1,))
-
-    
+        expert_actions = np.empty((len(tuple_trajectories),) + (1,))    
 
     expert_returns = np.empty((len(tuple_trajectories),) + (1,))
     expert_dones = np.empty((len(tuple_trajectories),) + (1,))
@@ -522,14 +484,17 @@ def gen_trajectories():
     expert_rewards = np.empty((len(tuple_trajectories),) + (1,))
 
     reward_approximator_trajectory.append({
-                    "next_state": next_state,
-                    "state": state,
-                    "action": action,
-                    "rewards": ret,
-                    "done": done,
-                    "is_start": is_start,
-                    "rewards": rewards
-            })
+        "next_state": next_state,
+        "state": state,
+        "action": action,
+        "rewards": ret,
+        "done": done,
+        "is_start": is_start,
+        "rewards": rewards
+    })
+
+    # with open("/home/jupyter-msiper/bootstrapping-pcgrl/data/zelda/trajectories/expert_goalset_traj.json", "w") as f:
+    #     f.write(json.dumps(tuple_trajectories))
 
     for i, (next_obs, obs, act, returns, done, is_start, reward) in enumerate(tuple_trajectories):
         expert_next_observations[i] = next_obs
@@ -540,11 +505,7 @@ def gen_trajectories():
         expert_is_starts[i] = is_start
         expert_rewards[i] = reward
 
-
-
-        
-
-    numpy_archive_filename = "/home/jupyter-msiper/bootstrapping_rl/lg_expert_traj_2.npz"
+    numpy_archive_filename = f"/home/jupyter-msiper/bootstrapping-pcgrl/data/zelda/trajectories/lg_expert_goalset_traj_{id}.npz"
     if LEGACY_STABLE_BASELINES_EXPERT_DATASET:
         np.savez_compressed(
             numpy_archive_filename,
@@ -609,13 +570,13 @@ def gen_trajectories():
     # with open("/home/jupyter-msiper/bootstrapping_rl/embedded_expert_trajectory.json", "w") as f:
     #     f.write(json.dumps(embedded_reward_approximator_trajectory))  
     
-    
+# NOTE: to run this --> PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python python gen_expert_traj.py
 
-gen_trajectories()
+for id in range(1,3):
+    gen_trajectories(id)
 # action_dim = (8,)
 # obs_dim = (21,21,8)
 # format_expert_tuple_trajectories_and_save_as_compressed_numpy_archive_and_ret_expert_obss_acts(obs_dim, action_dim, filename_suffix="expert_dataset")
 
 # format_expert_tuple_trajectories_and_save_as_compressed_numpy_archive_and_ret_expert_obss_acts(obs_dim, action_dim, filename_suffix="", path_to_expert_trajectories="/home/jupyter-msiper/bootstrapping_rl/expert_trajectory.json")
-    
         
