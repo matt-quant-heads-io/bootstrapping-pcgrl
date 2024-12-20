@@ -3,4 +3,5 @@ tensorflow==1.15
 matplotlib
 pandas
 tqdm
-
+mpi4py==3.1.6
+np-utils==0.6.0
