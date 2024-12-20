@@ -4,9 +4,8 @@ from tqdm import tqdm, trange
 import os
 import pandas as pd
 
+
 def hamm_dist(lvl1, lvl2):
-    # print(f"lvl1: {lvl1}")
-    # print(f"lvl2: {lvl2}")
     value = np.abs(lvl1.flatten() - lvl2.flatten())
     value[value > 0] = 1
     return value.sum()
@@ -25,9 +24,11 @@ def direction_diversity(lvls, goals, distfn=hamm_dist):
         dists.append(min_dist)
     return np.array(dists)
 
+
 def get_subset_diversity(lvls, goal, cuttoff, distfn=hamm_dist):
     dists = direction_diversity(lvls, goal, distfn)
     return lvls[dists >= cuttoff]
+
 
 def greedy_set_diversity(lvls, cuttoff, distfn=hamm_dist):
     indeces = set()
@@ -40,6 +41,7 @@ def greedy_set_diversity(lvls, cuttoff, distfn=hamm_dist):
             temp = temp[temp > i]
             indeces.update(temp)
     return np.delete(lvls, list(indeces), axis=0)
+
 
 def ogreedy_set_diversity(lvls, cuttoff, distfn=hamm_dist):
     extra_info = []
@@ -56,7 +58,6 @@ def ogreedy_set_diversity(lvls, cuttoff, distfn=hamm_dist):
         temp_info['worse_identical'] = (values == temp_info['worse']).sum()
         extra_info.append(temp_info)
     return greedy_set_diversity(lvls[repeat.argsort()], cuttoff, distfn), extra_info
-
 
 
 # Reads in .txt playable map and converts it to int[][]
@@ -80,20 +81,6 @@ def read_in_charmap_as_int_level(file_name):
         new_level.append(new_row)
     return np.array(new_level)
 
-
-# def read_in_chartestmap_as_int_level(file_name):
-#     level = []
-
-#     with open(file_name, "r") as f:
-#         level = f.readlines()[0]
-
-#     new_level = []
-#     for l in level:
-#         new_level.append(constants.CHAR_INT_MAP[l])
-#     # print(f"new_level: {new_level}")
-
-#     new_level = np.array(new_level)
-#     return new_level.reshape((7,11))
 
 import json
 
@@ -130,33 +117,16 @@ def load_goal_maps(path):
     int_maps = []
     for goal_file in os.listdir(path):
         if goal_file.endswith('.txt'):
-            # print(f"found GOAL map at{f'{path}/{goal_file}'}")
             int_maps.append(read_in_charmap_as_int_level('{path}/{goal_file}'))
-
-    # print(f"GOAL MAPS: {int_maps}")
+            
     return np.array(int_maps)
-
-
-# def load_test_maps(path):
-#     int_maps = []
-#     for goal_subdir in os.listdir(path):
-#         for goal_dir in os.listdir(f"{path}/{goal_subdir}"):
-#             for goal_file in os.listdir(f"{path}/{goal_subdir}/{goal_dir}"):
-#                 if goal_file.endswith('.txt'):
-#                     int_maps.append(read_in_chartestmap_as_int_level(f'{path}/{goal_subdir}/{goal_dir}/{goal_file}'))
-
-#     return np.array(int_maps)
 
 
 obs_size = 21
 
-# TEST_MAPS_DIR = f'/home/jupyter-msiper/controllable_pod/generated_maps_char_maps'
-# GOAL_MAPS_DIR = '/home/jupyter-msiper/controllable_pod/playable_maps'
-
 
 def calculate_results(test_map_dir):
     test_lvls = read_in_chartestmap_as_int_level(test_map_dir)
-    # goal_lvls = load_goal_maps(goal_map_dir) 
     inference_results_json = None
     with open(test_map_dir + "/inference_results.json", "r") as f:
         inference_results_json = json.loads(f.read())
@@ -223,38 +193,7 @@ def calculate_results(test_map_dir):
         results_dict["ppo_total_time"].append(ppo_total_time)
         results_dict["num_boostrap_episodes"].append(num_boostrap_episodes)
 
-
-    import pdb; pdb.set_trace()
     df = pd.DataFrame(results_dict)
     df.to_csv(test_map_dir + "/final_results.json", index=False)
     
     print("Finished generating results!")
-
-
-# Cutoff 10%
-# Diversity with respect to Goal then Internal: 122 / 309
-
-# Cutoff 10%
-# Diversity with respect to Goal then Internal: 122 / 309
-
-
-
-"""
-Next steps:
-===========
-- pos (1), negative (-1), neutral (0) [1-hot encoded] for conditional inputs, every stps
-    calc params needed, network learns which trait to increse/decrease
-    - compute this each step during trajectory generation
-
-    - can play with the destructor since now we have these local updates 
-        different sequences of updates can produce the same output traits 
-        so how can we destroy in a smart way?
-
-    - counting network stays the same
-
-    - 3D minecraft
-
-- Binary?
-- Start overleaf
-
-"""

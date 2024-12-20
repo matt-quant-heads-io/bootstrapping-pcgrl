@@ -3,11 +3,16 @@ Run a trained agent and get generated maps
 """
 import json
 import model
-from stable_baselines import PPO2
 
-import time
 from utils import make_vec_envs
 import os
+import argparse
+
+PROJECT_ROOT = os.getenv("PROJECT_ROOT")
+if not PROJECT_ROOT:
+    raise RuntimeError("The env var `PROJECT_ROOT` is not set.")
+
+from stable_baselines import PPO2
 
 
 REV_TILES_MAP = {
@@ -42,25 +47,24 @@ def infer(game, representation, model_path, **kwargs):
         kwargs['cropped_size'] = 28
     elif game == "zelda":
         model.FullyConvPolicy = model.FullyConvPolicyBigMap
-        kwargs['cropped_size'] = 21
+        kwargs['cropped_size'] = 22
     elif game == "sokoban":
         model.FullyConvPolicy = model.FullyConvPolicySmallMap
         kwargs['cropped_size'] = 10
     kwargs['render'] = False
 
-    agent = PPO2.load(model_path)
     env = make_vec_envs(env_name, representation, None, 1, **kwargs)
+    agent = PPO2.load(model_path)
     obs = env.reset()
     obs = env.reset()
     dones = False
     solved = 0
     unsolved = 0
+    rewards = []
     results = {"solved_maps": [], 'num_boostrap_episodes': [], 'train_process': [], 'num_ppo_timesteps': [], 'num_boostrap_epochs': [], 'bootstrap_total_time': [], 'ppo_total_time': [], 'total_train_time': []}
     for i in range(kwargs.get('trials', 1)):
         while not dones:
             action, _ = agent.predict(obs)
-            # print("action: {action}".format(action=action))
-            # obs, _, dones, info = env.step(action+1)
             obs, _, dones, info = env.step(action)
             if kwargs.get('verbose', False):
                 # print(info[0])
@@ -70,39 +74,62 @@ def infer(game, representation, model_path, **kwargs):
                     solved += 1
                     solved_pct = round(float(solved) / (float(solved)+float(unsolved)),2)*100
                     print("Solve %: {solved_pct} Solved {solved}, Unsolved: {unsolved}".format(solved_pct=solved_pct, solved=solved, unsolved=unsolved))
+                    reward = info[0]["reward"]
+                    rewards.append(reward)
+                    
+                    print("Mean reward: {reward}".format(reward=sum(rewards)/len(rewards)))
                     char_map = str_map_to_char_map(info[0]["final_map"])
                     results["solved_maps"].append(char_map)
-                    results["num_boostrap_episodes"].append(kwargs['num_boostrap_episodes'])
-                    results["num_ppo_timesteps"].append(kwargs['num_ppo_timesteps'])
-                    results["train_process"].append(kwargs['train_process'])
-                    results["num_boostrap_epochs"].append(kwargs['num_boostrap_epochs'])
-                    results["bootstrap_total_time"].append(kwargs['bootstrap_total_time'])
-                    results["ppo_total_time"].append(kwargs['ppo_total_time'])
-                    results["total_train_time"].append(kwargs['total_train_time'])
+                    results["num_boostrap_episodes"].append(0)
+                    results["num_ppo_timesteps"].append(0)
+                    results["train_process"].append(0)
+                    results["num_boostrap_epochs"].append(0)
+                    results["bootstrap_total_time"].append(0)
+                    results["ppo_total_time"].append(0)
+                    results["total_train_time"].append(0)
                 else:
                     unsolved += 1
                     solved_pct = round(float(solved) / (float(solved)+float(unsolved)),2)*100
                     print("Solve %: {solved_pct} Solved {solved}, Unsolved: {unsolved}".format(solved_pct=solved_pct, solved=solved, unsolved=unsolved))
-
-                # print("info {info}".format(info=info))
                 break
         dones = False
         obs = env.reset()
-        os.system("chmod 777 {experiment_path}/inference_results.json".format(experiment_path=kwargs['experiment_path']))
-        with open(kwargs['experiment_path']+"/inference_results.json", "w") as f:
+        os.system("chmod 777 {experiment_path}/generated_maps/inference_results.json".format(experiment_path=kwargs['experiment_path']))
+        with open(kwargs['experiment_path']+"/generated_maps/inference_results.json", "w") as f:
             f.write(json.dumps(results))
         # time.sleep(0.2)
 
-################################## MAIN ########################################
-# game = 'zelda'
-# representation = 'narrow'
-# model_path = 'models/{}/{}/model_1.pkl'.format(game, representation)
-# model_path = "/home/jupyter-msiper/gym-pcgrl/runs/zelda_narrow_1_1_log/best_model2.pkl"#"/home/jupyter-msiper/gym-pcgrl/runs/zelda_narrow_1_1_log/best_model.pkl" #"/home/jupyter-msiper/gym-pcgrl/ppo2_zelda_wide_10_epochs.zip"
-# kwargs = {
-#     'change_percentage': 1,
-#     'trials': 1000,
-#     'verbose': True
-# }
 
-# if __name__ == '__main__':
-#     infer(game, representation, model_path, **kwargs)
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog='Inference script',
+        description='This is the inference script for evaluating agent performance'
+    )
+    parser.add_argument('--game', '-g', choices=['zelda', 'loderunner'], default="zelda") 
+    parser.add_argument('--representation', 'r', default='narrow')
+    parser.add_argument('--results_path', default="1")
+    parser.add_argument('--model_path', required=True, type=str)
+    parser.add_argument('--chg_pct', default=0.4, type=float)
+    parser.add_argument('--trials', default=500, type=int)
+    parser.add_argument('--verbose', default=True, type=bool)
+
+    return parser.parse_args()
+
+
+################################## MAIN ########################################
+if __name__ == '__main__':
+    args = parse_args()
+    game = args.game 
+    representation = args.representation
+    model_path = args.model_path
+    
+    results_path = PROJECT_ROOT + "/data/" + args.game + "/experiments/" + args.results_path
+    kwargs = {
+        'change_percentage': args.chg_pct,
+        'trials': args.trials,
+        'verbose': args.verbose,
+        'experiment_path': results_path
+    }
+    
+    
+    infer(game, representation, model_path, **kwargs)
