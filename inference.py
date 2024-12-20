@@ -67,7 +67,6 @@ def infer(game, representation, model_path, **kwargs):
             action, _ = agent.predict(obs)
             obs, _, dones, info = env.step(action)
             if kwargs.get('verbose', False):
-                # print(info[0])
                 pass
             if dones:
                 if info[0]["solved"]:
