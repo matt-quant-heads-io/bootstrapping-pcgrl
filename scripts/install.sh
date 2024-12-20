@@ -12,3 +12,4 @@ conda create -n bs_pcgrl_py_310 python=3.10 -y
 conda activate bs_pcgrl_py_310
 pip install -e .
 pip install -r ${PROJECT_ROOT}/env_requirements/bs_pcgrl_py_310.txt 
+conda deactivate bs_pcgrl_py_310
