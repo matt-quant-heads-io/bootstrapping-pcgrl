@@ -4,6 +4,11 @@
 source scripts/install.sh
 ```
 
+# Generate PoD trajectories (torch runtime)
+```
+source scripts/gen_pod_traj.sh
+```
+
 # Run training (tensorflow runtime)
 ```
 conda activate bs_pcgrl_py_35
