@@ -8,8 +8,8 @@ PROJECT_ROOT = os.environ["PROJECT_ROOT"]
 
 # ###################   ZELDA CONSTANTS   ##############################
 
-ZELDA_DATA_ROOT = "/home/jupyter-msiper/bootstrapping-pcgrl/data/zelda" #os.environ["ZELDA_DATA_ROOT"]
-ZELDA_GOAL_MAPS_ROOT = "/home/jupyter-msiper/bootstrapping-pcgrl/goal_maps/zelda_expert" #os.environ["ZELDA_GOAL_MAPS_ROOT"]
+ZELDA_DATA_ROOT = PROJECT_ROOT + "/data/zelda"
+ZELDA_GOAL_MAPS_ROOT = PROJECT_ROOT + "/goal_maps/zelda_expert"
 DOMAIN_VARS_ZELDA = {
     "tiles_map": {
         "g": "door",
@@ -141,8 +141,8 @@ DOMAIN_VARS_ZELDA = {
 TILES_MAP_ZELDA = DOMAIN_VARS_ZELDA["tiles_map"]
 INT_MAP_ZELDA = DOMAIN_VARS_ZELDA["int_map"]
 
-LEGO_DATA_ROOT = "/home/jupyter-msiper/sweep_testing_pod/data/lego"  # os.environ["LEGO_DATA_ROOT"]
-LEGO_GOAL_MAPS_ROOT = "/home/jupyter-msiper/sweep_testing_pod/goal_maps/lego" #os.environ["LEGO_GOAL_MAPS_ROOT"]
+LEGO_DATA_ROOT = PROJECT_ROOT + "/data/lego"
+LEGO_GOAL_MAPS_ROOT = PROJECT_ROOT + "/goal_maps/lego" #os.environ["LEGO_GOAL_MAPS_ROOT"]
 DOMAIN_VARS_LEGO = {
     "actions_map": {
         "recte4.dat": 0,

@@ -1,0 +1,6 @@
+stable-baselines==2.9.0
+tensorflow==1.15
+matplotlib
+pandas
+tqdm
+
