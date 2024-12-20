@@ -1,10 +1,25 @@
-#pip install tensorflow==1.15
-#Install stable-baselines as described in the documentation
+import os
+import argparse
+import datetime
+import pathlib
 
-import model
+import gym
+import tensorflow as tf
+
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.common import make_vec_env
+from stable_baselines import PPO2
+from stable_baselines.gail.dataset.dataset import ExpertDataset
+from stable_baselines.results_plotter import load_results, ts2xy
+
+import matplotlib 
+# matplotlib.use('TkAgg') 
+
+from pathlib import Path
+from utils import load_model
 from model import FullyConvPolicyBigMap, FullyConvPolicySmallMap, CustomPolicyBigMap, CustomPolicySmallMap
 
-from utils import get_exp_name, max_exp_idx, load_model, make_vec_envs
+# from utils import get_exp_name, max_exp_idx, load_model, make_vec_envs
 from stable_baselines import PPO2
 from stable_baselines.results_plotter import load_results, ts2xy
 
@@ -12,10 +27,18 @@ import tensorflow as tf
 import numpy as np
 import os
 
-n_steps = 0
-# log_dir = './'
-log_dir = "/home/jupyter-msiper/bootstrapping-pcgrl/data/zelda/models/ppo/5000_1000000_100"
-best_mean_reward, n_steps = -np.inf, 0
+import numpy as np
+from utils import make_vec_envs as mkvenv, make_env as mkenv
+
+from model import FullyConvPolicyBigMap, FullyConvPolicySmallMap, CustomPolicyBigMap, CustomPolicySmallMap
+
+np.seterr(all='raise') 
+
+
+PROJECT_ROOT = os.getenv("PROJECT_ROOT")
+if not PROJECT_ROOT:
+    raise RuntimeError("The env var `PROJECT_ROOT` is not set.")
+    
 
 def callback(_locals, _globals):
     """
@@ -24,12 +47,11 @@ def callback(_locals, _globals):
     :param _globals: (dict)
     """
     global n_steps, best_mean_reward
-    # import pdb; pdb.set_trace()
+
     # Print stats every 1000 calls
     if (n_steps + 1) % 10 == 0:
         x, y = ts2xy(load_results(log_dir), 'timesteps')
         if len(x) > 100:
-           #pdb.set_trace()
             mean_reward = np.mean(y[-100:])
             print(x[-1], 'timesteps')
             print("Best mean reward: {:.2f} - Last mean reward per episode: {:.2f}".format(best_mean_reward, mean_reward))
@@ -51,63 +73,76 @@ def callback(_locals, _globals):
     return True
 
 
-def train(game, representation, experiment, steps, n_cpu, render, logging, experiment_path, **kwargs):
-    env_name = '{}-{}-v0'.format(game, representation)
-    exp_name = get_exp_name(game, representation, experiment, **kwargs)
+def main(game, representation, experiment, steps, n_cpu, render, logging, experiment_path, tb_log_dir, **kwargs):
     resume = kwargs.get('resume', False)
-    if representation == 'wide':
-        policy = FullyConvPolicyBigMap
-        if game == "sokoban":
-            policy = FullyConvPolicySmallMap
-    else:
-        policy = CustomPolicyBigMap
-        if game == "sokoban":
-            policy = CustomPolicySmallMap
     if game == "binary":
         kwargs['cropped_size'] = 28
     elif game == "zelda":
-        kwargs['cropped_size'] = 21
+        kwargs['cropped_size'] = 22
     elif game == "sokoban":
         kwargs['cropped_size'] = 10
-    n = max_exp_idx(exp_name)
+
     global log_dir
-    if not resume:
-        n = n + 1
-    log_dir = '{experiment_path}/{exp_name}_{n}_{log}'.format(experiment_path=experiment_path, exp_name=exp_name, n=n, log='log')
-    # import pdb; pdb.set_trace()
-    if not resume:
-        os.mkdir(log_dir)
-    else:
-        model = load_model(log_dir)
+
+    log_dir = kwargs["logdir"]
+    if resume:
+        model = load_model(experiment_path)
+        
     kwargs = {
         **kwargs,
         'render_rank': 0,
         'render': render,
     }
-    used_dir = log_dir
-    if not logging:
-        used_dir = None
-    env = make_vec_envs(env_name, representation, log_dir, n_cpu, **kwargs)
+    env = mkvenv(game+"-" + representation +"-v0", "narrow", experiment_path, 1, **kwargs)
     if not resume or model is None:
-        model = PPO2(policy, env, verbose=1, tensorboard_log=experiment_path)
+        model = PPO2(CustomPolicyBigMap, env, verbose=1, tensorboard_log=experiment_path+"/")
     else:
         model.set_env(env)
+        
     if not logging:
-        model.learn(total_timesteps=int(steps), tb_log_name=exp_name)
+        model.learn(total_timesteps=int(steps), tb_log_name=tb_log_dir)
     else:
-        model.learn(total_timesteps=int(steps), tb_log_name=exp_name, callback=callback)
+        model.learn(total_timesteps=int(steps), tb_log_name=tb_log_dir, callback=callback)
 
-################################## MAIN ########################################
-game = 'zelda'
-representation = 'narrow'
-experiment = "1"
-steps = 1000000
-render = False
-logging = True
-n_cpu = 1
-kwargs = {
-    'resume': True
-}
 
-# if __name__ == '__main__':
-#     main(game, representation, experiment, steps, n_cpu, render, logging, **kwargs)
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog='Training script',
+        description='This is the training script for a non-bootstrapped agent'
+    )
+    parser.add_argument('--game', '-g', choices=['zelda', 'loderunner'], default="zelda") 
+    parser.add_argument('--representation', '-r', default='narrow')
+    parser.add_argument('--experiment', default="1")
+    parser.add_argument('--n_steps', default=0, type=int)
+    parser.add_argument('--steps', default=1000000, type=int)
+    parser.add_argument('--render', default=False, type=bool)
+    parser.add_argument('--logging', default=True, type=bool)
+    parser.add_argument('--n_cpu', default=1, type=int)
+    parser.add_argument('--tb_log_dir', default="ppo_1000_steps", type=str)
+    parser.add_argument('--resume', action='store_true')
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    game = args.game
+    representation = args.representation
+    experiment = args.experiment
+    n_steps = args.n_steps
+    steps = args.steps
+    render = args.render
+    logging = args.logging
+    n_cpu = args.n_cpu
+    kwargs = {
+        'resume': args.resume
+    }
+    best_mean_reward = -np.inf
+    experiment_path = PROJECT_ROOT + "/data/" + args.game + "/experiments/" + args.experiment
+    experiment_filepath = pathlib.Path(experiment_path)
+    if not experiment_filepath.exists():
+        os.makedirs(str(experiment_filepath))
+
+    kwargs["logdir"] = experiment_path
+    log_dir = experiment_path
+    main(game, representation, experiment, steps, n_cpu, render, logging, experiment_path, args.tb_log_dir, **kwargs)
