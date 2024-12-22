@@ -6,7 +6,7 @@ from stable_baselines.common.policies import ActorCriticPolicy, FeedForwardPolic
 from stable_baselines.common.distributions import CategoricalProbabilityDistributionType, ProbabilityDistributionType, CategoricalProbabilityDistribution, ProbabilityDistribution
 from stable_baselines.a2c.utils import conv, linear, conv_to_fc
 
-np.seterr(all='raise') 
+np.seterr(all='ignore') 
 
 def Cnn1(image, **kwargs):
     activ = tf.nn.relu
@@ -52,31 +52,25 @@ def FullyConv1(image, n_tools, **kwargs):
 
 def FullyConv2(image, n_tools, **kwargs):
     activ = tf.nn.relu
-    x = activ(conv(image, 'c1', n_filters=32, filter_size=3, stride=1,
+    x = activ(conv(image, 'c1', n_filters=64, filter_size=3, stride=2,
         pad='SAME', init_scale=np.sqrt(2)))
-    x = activ(conv(x, 'c2', n_filters=64, filter_size=3, stride=1,
+    x = activ(conv(x, 'c2', n_filters=64, filter_size=3, stride=2,
         pad='SAME', init_scale=np.sqrt(2)))
-    x = activ(conv(x, 'c3', n_filters=64, filter_size=3, stride=1,
+    x = activ(conv(x, 'c3', n_filters=64, filter_size=3, stride=2,
         pad='SAME', init_scale=np.sqrt(2)))
-    x = activ(conv(x, 'c4', n_filters=64, filter_size=3, stride=1,
+    x = activ(conv(x, 'c4', n_filters=64, filter_size=3, stride=2,
         pad='SAME', init_scale=np.sqrt(2)))
-    x = activ(conv(x, 'c5', n_filters=64, filter_size=3, stride=1,
-        pad='SAME', init_scale=np.sqrt(2)))
-    x = activ(conv(x, 'c6', n_filters=64, filter_size=3, stride=1,
-        pad='SAME', init_scale=np.sqrt(2)))
-    x = activ(conv(x, 'c7', n_filters=64, filter_size=3, stride=1,
-        pad='SAME', init_scale=np.sqrt(2)))
-    x = activ(conv(x, 'c8', n_filters=n_tools, filter_size=3, stride=1,
+    x = activ(conv(x, 'c5', n_filters=64, filter_size=3, stride=2,
         pad='SAME', init_scale=np.sqrt(2)))
     act = conv_to_fc(x)
-    val = activ(conv(x, 'v1', n_filters=64, filter_size=3, stride=2,
-        init_scale=np.sqrt(2)))
-    val = activ(conv(val, 'v2', n_filters=64, filter_size=3, stride=2,
+    val = activ(conv(x, 'v1', n_filters=64, filter_size=3, stride=2, pad='SAME', init_scale=np.sqrt(2)))
+    val = activ(conv(val, 'v2', n_filters=64, filter_size=1, stride=2,
         init_scale=np.sqrt(3)))
     val = activ(conv(val, 'v4', n_filters=64, filter_size=1, stride=1,
         init_scale=np.sqrt(2)))
     val = conv_to_fc(val)
     return act, val
+
 
 class NoDenseCategoricalProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, n_cat):
@@ -90,10 +84,10 @@ class NoDenseCategoricalProbabilityDistributionType(ProbabilityDistributionType)
     def probability_distribution_class(self):
         return CategoricalProbabilityDistribution
 
-    def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0,
-                                       init_bias=0.0):
-        pdparam = pi_latent_vector
-        q_values = vf_latent_vector
+    def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
+        pdparam = linear(pi_latent_vector, 'pi', self.n_cat, init_scale=init_scale, init_bias=init_bias)
+        print(pdparam)
+        q_values = linear(vf_latent_vector, 'q', self.n_cat, init_scale=init_scale, init_bias=init_bias)
         return self.proba_distribution_from_flat(pdparam), pdparam, q_values
 
     def param_shape(self):
@@ -108,7 +102,8 @@ class NoDenseCategoricalProbabilityDistributionType(ProbabilityDistributionType)
 class FullyConvPolicyBigMap(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, **kwargs):
         super(FullyConvPolicyBigMap, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, **kwargs)
-        n_tools = int(ac_space.n / (ob_space.shape[0] * ob_space.shape[1]))
+        print(ac_space.n)
+        n_tools = 64#int(ac_space.n / (ob_space.shape[0] * ob_space.shape[1]))
         self._pdtype = NoDenseCategoricalProbabilityDistributionType(ac_space.n)
         with tf.variable_scope("model", reuse=kwargs['reuse']):
             pi_latent, vf_latent = FullyConv2(self.processed_obs, n_tools, **kwargs)
