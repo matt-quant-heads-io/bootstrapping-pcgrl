@@ -13,13 +13,11 @@ from stable_baselines.gail.dataset.dataset import ExpertDataset
 from stable_baselines.results_plotter import load_results, ts2xy
 
 import matplotlib 
-# matplotlib.use('TkAgg') 
 
 from pathlib import Path
 from utils import load_model
 from model import FullyConvPolicyBigMap, FullyConvPolicySmallMap, CustomPolicyBigMap, CustomPolicySmallMap
 
-# from utils import get_exp_name, max_exp_idx, load_model, make_vec_envs
 from stable_baselines import PPO2
 from stable_baselines.results_plotter import load_results, ts2xy
 
@@ -32,7 +30,7 @@ from utils import make_vec_envs as mkvenv, make_env as mkenv
 
 from model import FullyConvPolicyBigMap, FullyConvPolicySmallMap, CustomPolicyBigMap, CustomPolicySmallMap
 
-np.seterr(all='raise') 
+np.seterr(all='ignore') 
 
 
 PROJECT_ROOT = os.getenv("PROJECT_ROOT")
@@ -93,7 +91,7 @@ def main(game, representation, experiment, steps, n_cpu, render, logging, experi
         'render_rank': 0,
         'render': render,
     }
-    env = mkvenv(game+"-" + representation +"-v0", "narrow", experiment_path, 1, **kwargs)
+    env = mkvenv(game+"-" + representation +"-v0", "narrow", experiment_path, n_cpu, **kwargs)
     if not resume or model is None:
         model = PPO2(CustomPolicyBigMap, env, verbose=1, tensorboard_log=experiment_path+"/")
     else:
@@ -112,13 +110,13 @@ def parse_args():
     )
     parser.add_argument('--game', '-g', choices=['zelda', 'loderunner'], default="zelda") 
     parser.add_argument('--representation', '-r', default='narrow')
-    parser.add_argument('--experiment', default="1")
+    parser.add_argument('--experiment', default="ppo_100M_steps")
     parser.add_argument('--n_steps', default=0, type=int)
-    parser.add_argument('--steps', default=1000000, type=int)
+    parser.add_argument('--steps', default=1000000000, type=int)
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--logging', default=True, type=bool)
     parser.add_argument('--n_cpu', default=1, type=int)
-    parser.add_argument('--tb_log_dir', default="ppo_1000_steps", type=str)
+    parser.add_argument('--tb_log_dir', default="tb_log", type=str)
     parser.add_argument('--resume', action='store_true')
 
     return parser.parse_args()
@@ -138,7 +136,7 @@ if __name__ == '__main__':
         'resume': args.resume
     }
     best_mean_reward = -np.inf
-    experiment_path = PROJECT_ROOT + "/data/" + args.game + "/experiments/" + args.experiment
+    experiment_path = PROJECT_ROOT + "/experiments/" + args.game + "/" + args.experiment
     experiment_filepath = pathlib.Path(experiment_path)
     if not experiment_filepath.exists():
         os.makedirs(str(experiment_filepath))
