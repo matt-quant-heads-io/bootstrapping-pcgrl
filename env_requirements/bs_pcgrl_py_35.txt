@@ -1,7 +1,14 @@
 stable-baselines==2.9.0
 tensorflow==1.15
+tensorflow-gpu==1.15
+nvidia-pyindex
 matplotlib
 pandas
 tqdm
 mpi4py==3.1.6
+<<<<<<< HEAD
 np-utils==0.6.0
+=======
+np-utils==0.6.0
+
+>>>>>>> 44708f0 (Updated .gitignore file)

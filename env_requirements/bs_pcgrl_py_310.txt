@@ -3,3 +3,6 @@ torch
 numpy
 pandas
 tqdm
+gym==0.26.2
+gym-notices==0.0.8
+gymnasium==0.29.1
