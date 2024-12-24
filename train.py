@@ -112,7 +112,7 @@ def parse_args():
     parser.add_argument('--representation', '-r', default='narrow')
     parser.add_argument('--experiment', default="ppo_100M_steps")
     parser.add_argument('--n_steps', default=0, type=int)
-    parser.add_argument('--steps', default=1000000000, type=int)
+    parser.add_argument('--steps', default=100000000, type=int)
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--logging', default=True, type=bool)
     parser.add_argument('--n_cpu', default=1, type=int)

@@ -93,8 +93,8 @@ def infer(game, representation, model_path, **kwargs):
                 break
         dones = False
         obs = env.reset()
-        os.system("chmod 777 {experiment_path}/generated_maps/inference_results.json".format(experiment_path=kwargs['experiment_path']))
-        with open(kwargs['experiment_path']+"/generated_maps/inference_results.json", "w") as f:
+        os.system("chmod 777 {experiment_path}/inference_results.json".format(experiment_path=kwargs['experiment_path']))
+        with open(kwargs['experiment_path']+"/inference_results.json", "w") as f:
             f.write(json.dumps(results))
         # time.sleep(0.2)
 
@@ -106,7 +106,7 @@ def parse_args():
     )
     parser.add_argument('--game', '-g', choices=['zelda', 'loderunner'], default="zelda") 
     parser.add_argument('--representation', 'r', default='narrow')
-    parser.add_argument('--results_path', default="1")
+    parser.add_argument('--results_path', default="ppo_100M_steps")
     parser.add_argument('--model_path', required=True, type=str)
     parser.add_argument('--chg_pct', default=0.4, type=float)
     parser.add_argument('--trials', default=500, type=int)
@@ -122,7 +122,10 @@ if __name__ == '__main__':
     representation = args.representation
     model_path = args.model_path
     
-    results_path = PROJECT_ROOT + "/data/" + args.game + "/experiments/" + args.results_path
+    experiment_path = PROJECT_ROOT + "/experiments/" + args.game + "/" + args.experiment + "/inference_results"
+    experiment_filepath = pathlib.Path(experiment_path)
+    if not experiment_filepath.exists():
+        os.makedirs(str(experiment_filepath))
     kwargs = {
         'change_percentage': args.chg_pct,
         'trials': args.trials,
