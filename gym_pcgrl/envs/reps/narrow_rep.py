@@ -3,6 +3,7 @@ from PIL import Image
 from gym import spaces
 import numpy as np
 from collections import OrderedDict
+import random
 
 """
 The narrow representation where the agent is trying to modify the tile value of a certain
@@ -27,8 +28,10 @@ class NarrowRepresentation(Representation):
     """
     def reset(self, width, height, prob):
         super().reset(width, height, prob)
-        self._x = self._random.randint(width)
-        self._y = self._random.randint(height)
+        self._x = 0 #random.randint(0, width-1)
+        self._y = 0 #random.randint(0, height-1)
+        # self._x = random.randint(0, width-1)
+        # self._y = random.randint(0, height-1)
 
     """
     Gets the action space used by the narrow representation
@@ -102,8 +105,8 @@ class NarrowRepresentation(Representation):
             change += [0,1][self._map[self._y][self._x] != action-1]
             self._map[self._y][self._x] = action-1
         if self._random_tile:
-            self._x = self._random.randint(self._map.shape[1])
-            self._y = self._random.randint(self._map.shape[0])
+            self._x = random.randint(0, self._map.shape[1]-1)
+            self._y = random.randint(0, self._map.shape[0]-1)
         else:
             self._x += 1
             if self._x >= self._map.shape[1]:

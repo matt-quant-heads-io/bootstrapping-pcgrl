@@ -9,7 +9,7 @@ class Representation:
     The base constructor where all the representation variable are defined with default values
     """
     def __init__(self):
-        self._random_start = True
+        self._random_start = False
         self._map = None
         self._old_map = None
 

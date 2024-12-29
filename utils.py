@@ -6,9 +6,13 @@ import re
 import glob
 import numpy as np
 from gym_pcgrl import wrappers
-from stable_baselines import PPO2
-from stable_baselines.bench import Monitor
-from stable_baselines.common.vec_env import SubprocVecEnv, DummyVecEnv
+# from stable_baselines3 import PPO as PPO2
+# from stable_baselines3.bench import Monitor
+# from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+
+from stable_baselines3 import PPO as PPO2
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.env_util import SubprocVecEnv, DummyVecEnv
 
 import hashlib
 import struct

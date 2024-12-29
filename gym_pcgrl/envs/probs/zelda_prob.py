@@ -79,6 +79,7 @@ class ZeldaProblem(Problem):
     """
     def get_stats(self, map):
         map_locations = get_tile_locations(map, self.get_tile_types())
+        
         map_stats = {
             "player": calc_certain_tile(map_locations, ["player"]),
             "key": calc_certain_tile(map_locations, ["key"]),
@@ -153,7 +154,7 @@ class ZeldaProblem(Problem):
         boolean: True if the level reached satisfying quality based on the stats and False otherwise
     """
     def get_episode_over(self, new_stats, old_stats):
-        return new_stats["nearest-enemy"] >= self._target_enemy_dist and new_stats["path-length"] >= self._target_path
+        return new_stats["nearest-enemy"] >= self._target_enemy_dist and new_stats["path-length"] >= self._target_path and new_stats["player"] == 1 and new_stats["key"] == 1 and new_stats["door"] == 1 
 
     """
     Get any debug information need to be printed
