@@ -208,7 +208,7 @@ def str_arr_from_int_arr(map):
     return str_map
 
 
-def convert_state_to_int(state, obs_dim=(21,21, 8)):
+def convert_state_to_int(state, obs_dim=(22, 22, 8)):
     new_state = []
     new_state_oh = []
     for row in range(len(state)):
@@ -223,7 +223,7 @@ def convert_state_to_int(state, obs_dim=(21,21, 8)):
     return np.array(new_state_oh).reshape(obs_dim)
 
 
-def int_from_oh(state, obs_dim=(21, 21, 8)):
+def int_from_oh(state, obs_dim=(22, 22, 8)):
     int_map = []
     for row in range(len(state)):
         new_row = []

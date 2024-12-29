@@ -3,7 +3,7 @@ import os
 from gym_pcgrl.envs.probs.zelda_prob import ZeldaProblem
 
 
-PROJECT_ROOT = os.environ["PROJECT_ROOT"]
+PROJECT_ROOT = "/home/jupyter-msiper/bootstrapping-pcgrl"#os.environ["PROJECT_ROOT"]
 
 
 # ###################   ZELDA CONSTANTS   ##############################
@@ -40,7 +40,7 @@ DOMAIN_VARS_ZELDA = {
         "solid": "g",
         "empty": "h",
     },
-    "goal_maps_filepath": "goal_maps/zelda_expert/{}.txt", # "goal_maps/zelda/zelda_lvl{}.txt",
+    "goal_maps_filepath": "goal_maps/zelda_expert/zelda_lvl{}.txt", # "goal_maps/zelda/zelda_lvl{}.txt",
     "env_y": 7,
     "env_x": 11,
     "env_z": None,
