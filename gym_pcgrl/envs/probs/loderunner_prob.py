@@ -19,7 +19,7 @@ class LRProblem(Problem):
         super().__init__()
         self._width = 32
         self._height = 22
-        self._prob ={"empty": 0.55, "brick":0.24, "ladder":0.10, "rope": 0.04, "solid": 0.03, "gold": 0.03, "enemy": 0.004, "player":0.004}
+        self._prob ={"empty": 0.55, "brick":0.24, "ladder":0.10, "rope": 0.04, "solid": 0.03, "gold": 0.03, "enemy": 0.005, "player":0.005}
         self._border_tile = "solid"
 
         self._max_enemies = 2
