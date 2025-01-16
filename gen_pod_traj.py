@@ -5,6 +5,8 @@ from collections import OrderedDict
 import random
 from timeit import default_timer as timer
 from datetime import timedelta
+import argparse
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -14,6 +16,7 @@ import json
 
 from gym_pcgrl.envs.reps.narrow_rep import NarrowRepresentation
 from gym_pcgrl.envs.probs.zelda_prob import ZeldaProblem
+from gym_pcgrl.envs.probs.loderunner_prob import LRProblem
 from gym_pcgrl.wrappers import CroppedImagePCGRLWrapper
 from gym_pcgrl.envs.helper import (
     get_tile_locations,
@@ -26,12 +29,56 @@ import constants
 import utils
 
 
-ZELDA_PROBLEM_OBJ = ZeldaProblem()
-NUM_EPISODES = 5000
-PROCESS_STATE_AS_ONEHOT = True
-LEGACY_STABLE_BASELINES_EXPERT_DATASET = True
+DOMAIN_TO_PROB_OBJ_MAP = {
+    "loderunner": LRProblem,
+    "zelda": ZeldaProblem
+}
+DOMAIN_TO_INT_TILE_MAP = {
+    "zelda": {
+        "empty": 0,
+        "solid": 1,
+        "player": 2,
+        "key": 3,
+        "door": 4,
+        "bat": 5,
+        "scorpion": 6,
+        "spider": 7,
+    },
+    "loderunner": {
+        "empty": 0,
+        "brick": 1, 
+        "ladder": 2, 
+        "rope": 3, 
+        "solid": 4, 
+        "gold": 5, 
+        "enemy": 6, 
+        "player": 7
+    }
+}
+DOMAIN_TO_CHAR_TO_STR_TILE_MAP = {
+    "zelda":{
+        "g": "door",
+        "+": "key",
+        "A": "player",
+        "1": "bat",
+        "2": "spider",
+        "3": "scorpion",
+        "w": "solid",
+        ".": "empty",
+    },
+    "loderunner": {
+        ".":"empty",
+        "b":"brick", 
+        "#":"ladder", 
+        "-":"rope", 
+        "B":"solid", 
+        "G":"gold", 
+        "E":"enemy", 
+        "M":"player"
+    }
+}
+os.system("source ../set_project_root.sh")
 PROJECT_ROOT = os.getenv("PROJECT_ROOT")
-
 if not PROJECT_ROOT:
     raise RuntimeError("The env var `PROJECT_ROOT` is not set.")
 
@@ -52,37 +99,44 @@ def compute_hamm_dist(random_map, goal):
     return float(hamming_distance / (len(random_map) * len(random_map[0])))
 
 
-def find_closest_goal_map(random_map, goal_set_idxs):
+def find_closest_goal_map(random_map, goal_set_idxs, goal_maps_filepath, char_to_string_tiles_map, str_to_int_tiles_map):
     smallest_hamming_dist = math.inf
-    filepath = constants.DOMAIN_VARS_ZELDA["goal_maps_filepath"]
+    filepath = goal_maps_filepath
+    goal_maps = [f for f in os.listdir(goal_maps_filepath) if '.txt' in f]
     closest_map = curr_goal_map = int_arr_from_str_arr(
-        to_2d_array_level(filepath.format(goal_set_idxs[0]))
+        to_2d_array_level(f"{goal_maps_filepath}/{goal_maps[0]}", char_to_string_tiles_map), str_to_int_tiles_map
     )
 
-    for curr_idx in goal_set_idxs:
-        temp_hamm_distance = compute_hamm_dist(random_map, curr_goal_map)
+    for next_curr_goal_map_fp in goal_maps:
+        next_curr_goal_map = int_arr_from_str_arr(
+            to_2d_array_level(f"{goal_maps_filepath}/{next_curr_goal_map_fp}", char_to_string_tiles_map), str_to_int_tiles_map
+        )
+        temp_hamm_distance = compute_hamm_dist(random_map, next_curr_goal_map)
         if temp_hamm_distance < smallest_hamming_dist:
-            closest_map = curr_goal_map
+            closest_map = next_curr_goal_map
             smallest_hamming_dist = temp_hamm_distance
 
-        curr_goal_map = int_arr_from_str_arr(
-            to_2d_array_level(filepath.format(curr_idx))
-        )
     return closest_map
 
 
-def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=False, randomize_sequence=True):
-    string_map_for_map_stats = str_arr_from_int_arr(goal_map)
+def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=False, randomize_sequence=True, prob_obj=None, str_to_int_map=None):
+    string_map_for_map_stats = str_arr_from_int_arr(goal_map, str_to_int_map)
 
     # Targets
     if controllable:
-        new_map_stats_dict = ZELDA_PROBLEM_OBJ.get_stats(string_map_for_map_stats)
+        new_map_stats_dict = prob_obj.get_stats(string_map_for_map_stats)
         num_enemies = new_map_stats_dict["enemies"]
         nearest_enemy = new_map_stats_dict["nearest-enemy"]
         path_length = new_map_stats_dict["path-length"]
-        conditional_diffs = []      
-    
-    xys = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10), (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (4, 9), (4, 10), (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 10), (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 10)]
+        conditional_diffs = []
+        
+    xys = []
+    for row_i, row in enumerate(random_map):
+        for col_i, col in enumerate(row):
+            xys.append((row_i, col_i))
+            
+    # import pdb; pdb.set_trace()
+    # xys = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10), (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (4, 9), (4, 10), (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 10), (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 10)]
     
     if randomize_sequence:
         random.shuffle(xys)
@@ -106,9 +160,11 @@ def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=F
         row = obs[y]
         row[x] = action 
         obs[y] = row
-        current_reward = ZELDA_PROBLEM_OBJ.get_reward(ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(transform(obs, x, y, obs_size))), ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(transform(prev_obs, x, y, obs_size))))
+        # print(f"stats1:{}")
+        # print(f"stats2: {}")
+        current_reward = prob_obj.get_reward(prob_obj.get_stats(str_arr_from_int_arr(transform(obs, x, y, obs_size),str_to_int_map), ), prob_obj.get_stats(str_arr_from_int_arr(transform(prev_obs, x, y, obs_size),str_to_int_map)))
         cumulative_reward += current_reward
-        is_done = ZELDA_PROBLEM_OBJ.get_episode_over(ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(transform(obs, x, y, obs_size))), ZELDA_PROBLEM_OBJ.get_stats(str_arr_from_int_arr(transform(prev_obs, x, y, obs_size))))
+        is_done = prob_obj.get_episode_over(prob_obj.get_stats(str_arr_from_int_arr(transform(obs, x, y, obs_size),str_to_int_map)), prob_obj.get_stats(str_arr_from_int_arr(transform(prev_obs, x, y, obs_size),str_to_int_map)))
         dones.append(is_done)
         rewards.append(current_reward)
         if is_start:
@@ -124,7 +180,7 @@ def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=F
 
         if controllable:
             string_map_for_map_stats = str_arr_from_int_arr(obs)
-            new_map_stats_dict = ZELDA_PROBLEM_OBJ.get_stats(string_map_for_map_stats)
+            new_map_stats_dict = prob_obj.get_stats(string_map_for_map_stats)
             enemies_diff = num_enemies - new_map_stats_dict["enemies"]
             if enemies_diff > 0:
                 enemies_diff = 3
@@ -163,15 +219,15 @@ def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=F
 
 def transform(obs, x, y, obs_size):
     map = obs
-    size = obs_size
-    pad = obs_size // 2
+    size = obs_size[0]
+    pad = obs_size[0] // 2
     padded = np.pad(map, pad, constant_values=1)
     cropped = padded[y: y + size, x: x + size]
     
     return cropped
     
 
-def to_2d_array_level(file_name):
+def to_2d_array_level(file_name, tiles_map):
     level = []
 
     with open(file_name, "r") as f:
@@ -180,24 +236,24 @@ def to_2d_array_level(file_name):
             new_row = []
             for char in row:
                 if char != "\n":
-                    new_row.append(constants.TILES_MAP_ZELDA[char])
+                    new_row.append(tiles_map[char])
             level.append(new_row)
 
     return level
     
     
-def int_arr_from_str_arr(map):
+def int_arr_from_str_arr(map, int_arr_from_str_arr):
     int_map = []
     for row_idx in range(len(map)):
         new_row = []
         for col_idx in range(len(map[0])):
-            new_row.append(constants.INT_MAP_ZELDA[map[row_idx][col_idx]])
+            new_row.append(int_arr_from_str_arr[map[row_idx][col_idx]])
         int_map.append(new_row)
     return int_map
 
 
-def str_arr_from_int_arr(map):
-    translation_map = {v: k for k, v in constants.INT_MAP_ZELDA.items()}
+def str_arr_from_int_arr(map, str_to_int_map):
+    translation_map = {v: k for k, v in str_to_int_map.items()}
     str_map = []
     for row_idx in range(len(map)):
         new_row = []
@@ -208,22 +264,25 @@ def str_arr_from_int_arr(map):
     return str_map
 
 
-def convert_state_to_int(state, obs_dim=(21,21, 8)):
+def convert_state_to_onehot(state, obs_dim, act_dim):
     new_state = []
     new_state_oh = []
     for row in range(len(state)):
         new_row = []
         for col in range(len(state[0])):
-            cell_oh = [0]*8
+            cell_oh = [0]*act_dim
             cell_oh[int(state[row][col])]=1
             # new_row.append(cell_oh)
+            print(cell_oh)
             new_state_oh.append(cell_oh)
             
             # new_state.append(constants.DOMAIN_VARS_ZELDA["int_map"][state[row][col]])
-    return np.array(new_state_oh).reshape(obs_dim)
+            
+    # import pdb; pdb.set_trace()
+    return np.array(new_state_oh).reshape((obs_dim[0], obs_dim[1], act_dim))
 
 
-def int_from_oh(state, obs_dim=(21, 21, 8)):
+def int_from_oh(state, obs_dim):
     int_map = []
     for row in range(len(state)):
         new_row = []
@@ -235,34 +294,34 @@ def int_from_oh(state, obs_dim=(21, 21, 8)):
     return np.array(int_map).reshape(obs_dim[0], obs_dim[1])
 
 
-def gen_trajectories(id):
-    goal_maps_set = [i for i in range(0, len(os.listdir(constants.ZELDA_GOAL_MAPS_ROOT)))]
+def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, traj_len):
+    goal_maps_root_dir = f"{PROJECT_ROOT}/goal_maps/{domain}"
+    goal_maps_set = [i for i in range(0, len(sorted(os.listdir(goal_maps_root_dir))[:1]))]
+    prob_obj = DOMAIN_TO_PROB_OBJ_MAP[domain]()
     random.shuffle(goal_maps_set)
     goal_set_idxs = goal_maps_set
     rng, _ = utils.np_random(None)
-
+    char_to_string_tiles_map = DOMAIN_TO_CHAR_TO_STR_TILE_MAP[domain]
+    str_to_int_tiles_map = DOMAIN_TO_INT_TILE_MAP[domain]
     start_maps = [
         gen_random_map(
             rng,
-            constants.DOMAIN_VARS_ZELDA["env_x"],
-            constants.DOMAIN_VARS_ZELDA["env_y"],
-            constants.DOMAIN_VARS_ZELDA["action_pronbabilities_map"],
+            prob_obj._width,
+            prob_obj._height,
+            {str_to_int_tiles_map[s]: p for s,p in prob_obj._prob.items()},
         )
-        for _ in range(NUM_EPISODES)
+        for _ in range(num_episodes)
     ]
     goal_maps = [
-        find_closest_goal_map(start_map, goal_set_idxs) for start_map in start_maps
+        find_closest_goal_map(start_map, goal_set_idxs, goal_maps_root_dir, char_to_string_tiles_map, str_to_int_tiles_map) for start_map in start_maps
     ]
     
-    
-    obs_size = 22
-    traj_len = 77
-    action_dim = (8,)
-    obs_dim = (obs_size, obs_size, 8)
+    action_dim = (action_dim,)
+    obs_dim = (obs_dim, obs_dim, action_dim[0])
     reward_approximator_trajectory = []
     
     for epsiode_num, (start_map, goal_map) in enumerate(zip(start_maps, goal_maps)):
-        next_states, states, actions, returns, dones, is_starts, rewards = gen_pod_transitions(start_map, goal_map, traj_len, obs_size)
+        next_states, states, actions, returns, dones, is_starts, rewards = gen_pod_transitions(start_map, goal_map, traj_len, obs_dim, prob_obj=prob_obj, str_to_int_map=str_to_int_tiles_map)
         for next_state, state, action, ret, done, is_start, reward in zip(next_states, states, actions, returns, dones, is_starts, rewards):
             reward_approximator_trajectory.append({
                 "next_state": next_state,
@@ -280,22 +339,23 @@ def gen_trajectories(id):
     for json_dict in reward_approximator_trajectory:
         ret = json_dict["return"]
         done = json_dict["done"]
-        if PROCESS_STATE_AS_ONEHOT:
-            action_oh = [0]*8
+        if mode_of_output == "onehot":
+            action_oh = [0]*action_dim[0]
             action_oh[json_dict["action"]] = 1
-            tuple_trajectories.append((convert_state_to_int(json_dict["next_state"]), convert_state_to_int(json_dict["state"]), np.array(action_oh), np.array([ret]), np.array([done]), np.array([json_dict["is_start"]]), np.array([json_dict["rewards"]])))
+            tuple_trajectories.append((convert_state_to_onehot(json_dict["next_state"], obs_dim, action_dim[0]), convert_state_to_onehot(json_dict["state"], obs_dim, action_dim[0]), np.array(action_oh), np.array([ret]), np.array([done]), np.array([json_dict["is_start"]]), np.array([json_dict["rewards"]])))
         else:
             tuple_trajectories.append((json_dict["next_state"], json_dict["state"], json_dict["action"], np.array([ret]), np.array([done]), np.array([json_dict["is_start"]]), np.array([json_dict["rewards"]])))
     
     random.shuffle(tuple_trajectories)
 
-    if PROCESS_STATE_AS_ONEHOT:
+    if mode_of_output == "onehot":
+        # import pdb; pdb.set_trace()
         expert_observations = np.empty((len(tuple_trajectories),) + obs_dim)
         expert_next_observations = np.empty((len(tuple_trajectories),) + obs_dim)
         expert_actions = np.empty((len(tuple_trajectories),) + action_dim)
     else:
-        expert_observations = np.empty((len(tuple_trajectories),) + (obs_size,obs_size,))
-        expert_next_observations = np.empty((len(tuple_trajectories),) + (obs_size,obs_size,))
+        expert_observations = np.empty((len(tuple_trajectories),) + (obs_dim,obs_dim,))
+        expert_next_observations = np.empty((len(tuple_trajectories),) + (obs_dim,obs_dim,))
         expert_actions = np.empty((len(tuple_trajectories),) + (1,))    
 
     expert_returns = np.empty((len(tuple_trajectories),) + (1,))
@@ -322,31 +382,43 @@ def gen_trajectories(id):
         expert_is_starts[i] = is_start
         expert_rewards[i] = reward
 
-    numpy_archive_filename = f"{PROJECT_ROOT}/data/zelda/trajectories/lg_expert_goalset_traj_{id}.npz"
-    if LEGACY_STABLE_BASELINES_EXPERT_DATASET:
-        np.savez_compressed(
-            numpy_archive_filename,
-            actions=expert_actions,
-            episode_returns=expert_returns,
-            rewards=expert_rewards,
-            obs=expert_observations,
-            episode_starts=expert_is_starts
-        )
-    else:
-        np.savez_compressed(
-            numpy_archive_filename,
-            expert_next_observations=expert_next_observations,
-            expert_actions=expert_actions,
-            expert_observations=expert_observations,
-            expert_rewards=expert_rewards,
-            expert_dones=expert_dones
-        )
+    numpy_archive_filename = f"{PROJECT_ROOT}/data/{domain}/pod_trajs_{datetime.datetime.now()}.npz"
+    np.savez_compressed(
+        numpy_archive_filename,
+        actions=expert_actions,
+        episode_returns=expert_returns,
+        rewards=expert_rewards,
+        obs=expert_observations,
+        episode_starts=expert_is_starts
+    )
+
 
     print(f"Saved file as {numpy_archive_filename}")
     
+# python gen_pod_traj.py --domain loderunner --num_episodes 10 --mode_of_output onehot --action_dim 8 --obs_dim 64 --traj_len 704
+def get_args():
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("-d", "--domain", help="domain with which to run PoD", type=str, default="loderunner", choices=["lego", "loderunner", "zelda"])
+    argparser.add_argument("-n", "--num_episodes", help="number of episodes to run PoD", type=int, default="loderunner")
+    argparser.add_argument("-m", "--mode_of_output", help="Output mode of the PoD algorithm", type=str, default="onehot", choices=["onehot", "integer", "image", "string"])
+    argparser.add_argument("-a", "--action_dim", help="Action dimension", type=int)
+    argparser.add_argument("-o", "--obs_dim", help="Observation dimension", type=int)
+    argparser.add_argument("-t", "--traj_len", help="Trajectory length", type=int)
+    
+    return argparser.parse_args()
+    
+
+def gen_pod_trajectories(args):
+    gen_trajectories(args.domain, args.num_episodes, args.mode_of_output, args.action_dim, args.obs_dim, args.traj_len)
+
+
+def main():
+    args = get_args()
+    gen_pod_trajectories(args)
+    
+    
 # NOTE: to run this --> PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python python gen_expert_traj.py
 
-for id in range(1,3):
-    gen_trajectories(id)
+main()
     
         
