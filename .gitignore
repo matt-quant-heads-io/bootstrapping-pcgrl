@@ -35,6 +35,10 @@ output/runs/*
 *.spec
 *npz
 *.pkl
+output
+output2
+data/
+models/
 
 # Installer logs
 pip-log.txt
