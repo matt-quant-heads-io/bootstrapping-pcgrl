@@ -33,6 +33,12 @@ output/runs/*
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+*npz
+*.pkl
+output
+output2
+data/
+models/
 
 # Installer logs
 pip-log.txt
