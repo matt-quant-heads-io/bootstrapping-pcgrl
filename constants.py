@@ -8,7 +8,7 @@ PROJECT_ROOT = os.environ["PROJECT_ROOT"]
 
 # ###################   ZELDA CONSTANTS   ##############################
 ZELDA_DATA_ROOT = PROJECT_ROOT + "/data/zelda"
-ZELDA_GOAL_MAPS_ROOT = PROJECT_ROOT + "/goal_maps/zelda_expert"
+ZELDA_GOAL_MAPS_ROOT = PROJECT_ROOT + "/goal_maps/zelda"
 DOMAIN_VARS_ZELDA = {
     "tiles_map": {
         "g": "door",
