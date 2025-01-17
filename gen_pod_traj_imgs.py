@@ -78,7 +78,7 @@ DOMAIN_TO_CHAR_TO_STR_TILE_MAP = {
         "M":"player"
     }
 }
-os.system("source ../set_project_root.sh")
+os.system("source ./set_project_root.sh")
 PROJECT_ROOT = os.getenv("PROJECT_ROOT")
 if not PROJECT_ROOT:
     raise RuntimeError("The env var `PROJECT_ROOT` is not set.")
