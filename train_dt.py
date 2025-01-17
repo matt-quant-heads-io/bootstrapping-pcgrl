@@ -33,6 +33,10 @@ from tqdm import tqdm
 import pandas as pd
 # from trajectory_dataset import TrajectoryDataset
 
+PROJECT_ROOT = os.getenv("PROJECT_ROOT")
+if not PROJECT_ROOT:
+    raise RuntimeError("The env var `PROJECT_ROOT` is not set.")
+
 
 class TrajectoryDataset(Dataset):
     def __init__(
@@ -480,14 +484,14 @@ def main():
     # Initialize trainer
     trainer = Trainer(
         model=model,
-        train_csv='/home/jupyter-msiper/bootstrapping-pcgrl/data/loderunner/images/labels.csv',
+        train_csv=f'{PROJECT_ROOT}/data/loderunner/images/labels.csv',
         val_split=0.2,
         batch_size=32,
         num_epochs=100,
         action_dim=8,
         action_encoding='onehot',
         checkpoint_dir='dt_checkpoints',
-        image_root_dir='/home/jupyter-msiper/bootstrapping-pcgrl/data/loderunner/images/'
+        image_root_dir=f'{PROJECT_ROOT}/data/loderunner/images/'
     )
     
     # Train the model

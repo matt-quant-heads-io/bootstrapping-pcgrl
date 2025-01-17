@@ -303,7 +303,7 @@ def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, 
     goal_maps_root_dir = f"{PROJECT_ROOT}/goal_maps/{domain}"
     goal_maps_set = [i for i in range(0, len(sorted(os.listdir(goal_maps_root_dir))[:50]))]
     print(f"goal_maps_set: {goal_maps_set}")
-    img_dir = "/home/jupyter-msiper/bootstrapping-pcgrl/data/loderunner/images"
+    img_dir = f"{PROJECT_ROOT}/data/loderunner/images"
     shutil.rmtree(img_dir)
     os.mkdir(img_dir)
     with open(f"{img_dir}/goal_maps_used.txt", "w") as f:
