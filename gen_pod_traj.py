@@ -395,7 +395,7 @@ def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, 
 
     print(f"Saved file as {numpy_archive_filename}")
     
-# python gen_pod_traj.py --domain loderunner --num_episodes 10 --mode_of_output onehot --action_dim 8 --obs_dim 64 --traj_len 704
+# python gen_pod_traj.py --domain loderunner --num_episodes 100 --mode_of_output onehot --action_dim 8 --obs_dim 64 --traj_len 704
 def get_args():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("-d", "--domain", help="domain with which to run PoD", type=str, default="loderunner", choices=["lego", "loderunner", "zelda"])

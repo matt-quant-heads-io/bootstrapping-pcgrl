@@ -115,7 +115,7 @@ def get_str_lvl(level):
 #get tile-pattern kl divergence score for the level
 def get_tpkldiv(lvl, window=2, w=0.5):
     import statistics
-    path = "/content/bootstrapping-pcgrl/goal_maps/loderunner/"
+    path = "/home/jupyter-msiper/bootstrapping-pcgrl/goal_maps/loderunner/"
     targets =  ['Level 1.txt']
     
     score = []
