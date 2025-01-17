@@ -338,7 +338,7 @@ def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, 
     obs_dim = (obs_dim, obs_dim, action_dim[0])
     reward_approximator_trajectory = []
     freq_action_dict = defaultdict(int)
-    labels_dict_for_csv = {"img_filename": [], "action_label": []}
+    labels_dict_for_csv = {"episode_id": [], "image_path": [], "action": [], "reward": []}
     for k,v in char_to_string_tiles_map.items():
         freq_action_dict[v] = 0
         
@@ -347,9 +347,10 @@ def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, 
         next_states, states, actions, returns, dones, is_starts, rewards = gen_pod_transitions(start_map, goal_map, traj_len, obs_dim, prob_obj=prob_obj, str_to_int_map=str_to_int_tiles_map, xys=xys)
         
         # convert the state to jpg image
-        for state, action in zip(states, actions):
+        for next_state, state, action, _return, done, is_start, reward in zip(next_states, states, actions, returns, dones, is_starts, rewards):
             str_map = convert_int_map_to_str_map(state, int_to_str_tiles_map)
             img = prob_obj.render(str_map)
+            # import pdb; pdb.set_trace()
             # increment the freq_action_dict with the action
             action_str = int_to_str_tiles_map[action]
             freq_action_dict[action_str] += 1
@@ -357,18 +358,21 @@ def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, 
             # get the image filename (the action as string + <action_as_int>.jpg)
             img_filename = f"{action_str}{freq_action_dict[action_str]}.jpg"
             # Add the image filename and the action_as_int to labels_dict_for_csv
-            labels_dict_for_csv["img_filename"].append(img_filename)
-            labels_dict_for_csv["action_label"].append(action)
+            labels_dict_for_csv["episode_id"].append(epsiode_num+1)
+            labels_dict_for_csv["image_path"].append(img_filename)
+            labels_dict_for_csv["action"].append(action)
+            labels_dict_for_csv["reward"].append(reward)
+
             
             # save the image in the img_dir
             img = img.convert('RGB')
             img.save(f"{img_dir}/{img_filename}")
         
     df = pd.DataFrame(labels_dict_for_csv)
-    df.to_csv(f"{img_dir}/labels.csv", index=False, header=False)
+    df.to_csv(f"{img_dir}/labels.csv", index=False)
 
     
-# python gen_pod_traj_imgs.py --domain loderunner --num_episodes 1 --mode_of_output image --action_dim 8 --obs_dim 64 --traj_len 704
+# PROJECT_ROOT=/home/jupyter-msiper/bootstrapping-pcgrl python gen_pod_traj_imgs.py --domain loderunner --num_episodes 10 --mode_of_output image --action_dim 8 --obs_dim 64 --traj_len 5
 def get_args():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("-d", "--domain", help="domain with which to run PoD", type=str, default="loderunner", choices=["lego", "loderunner", "zelda"])
@@ -380,6 +384,20 @@ def get_args():
     
     return argparser.parse_args()
     
+
+import base64
+from io import BytesIO
+from PIL import Image
+
+def pil_to_base64(pil_img):
+    """Convert a PIL Image to base64 string."""
+    img_buffer = BytesIO()
+    pil_img.save(img_buffer, format="JPEG")  # Adjust format as needed
+    byte_data = img_buffer.getvalue()
+    base64_str = base64.b64encode(byte_data).decode('utf-8')
+    return base64_str
+
+
 
 def gen_pod_trajectories(args):
     gen_trajectories(args.domain, args.num_episodes, args.mode_of_output, args.action_dim, args.obs_dim, args.traj_len)
