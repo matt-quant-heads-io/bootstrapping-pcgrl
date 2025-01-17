@@ -1,12 +1,13 @@
 import os
 import math
 import copy
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import random
 from timeit import default_timer as timer
 from datetime import timedelta
 import argparse
 import datetime
+import shutil
 
 import numpy as np
 import pandas as pd
@@ -77,7 +78,7 @@ DOMAIN_TO_CHAR_TO_STR_TILE_MAP = {
         "M":"player"
     }
 }
-os.system("source ../set_project_root.sh")
+os.system("source ./set_project_root.sh")
 PROJECT_ROOT = os.getenv("PROJECT_ROOT")
 if not PROJECT_ROOT:
     raise RuntimeError("The env var `PROJECT_ROOT` is not set.")
@@ -119,7 +120,7 @@ def find_closest_goal_map(random_map, goal_set_idxs, goal_maps_filepath, char_to
     return closest_map
 
 
-def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=False, randomize_sequence=True, prob_obj=None, str_to_int_map=None):
+def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=False, randomize_sequence=True, prob_obj=None, str_to_int_map=None, xys=None):
     string_map_for_map_stats = str_arr_from_int_arr(goal_map, str_to_int_map)
 
     # Targets
@@ -129,11 +130,6 @@ def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=F
         nearest_enemy = new_map_stats_dict["nearest-enemy"]
         path_length = new_map_stats_dict["path-length"]
         conditional_diffs = []
-        
-    xys = []
-    for row_i, row in enumerate(random_map):
-        for col_i, col in enumerate(row):
-            xys.append((row_i, col_i))
             
     # import pdb; pdb.set_trace()
     # xys = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10), (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (4, 9), (4, 10), (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 10), (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 10)]
@@ -153,8 +149,9 @@ def gen_pod_transitions(random_map, goal_map, traj_len, obs_size, controllable=F
     rewards = []
     is_starts = []
     while steps < traj_len:
+        y, x = xys[steps]
         steps += 1
-        y, x = xys.pop()
+        
         action = goal_map[y][x]
         prev_obs = copy.copy(obs)
         row = obs[y]
@@ -294,15 +291,32 @@ def int_from_oh(state, obs_dim):
     return np.array(int_map).reshape(obs_dim[0], obs_dim[1])
 
 
+def convert_int_map_to_str_map(state, int_to_str_tiles_map):
+    str_map = []
+    for row_i, row in enumerate(state):
+        for col_i, col in enumerate(row):
+            str_map.append(int_to_str_tiles_map[state[row_i][col_i]])
+    return np.array(str_map).reshape(state.shape)
+
+
 def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, traj_len):
     goal_maps_root_dir = f"{PROJECT_ROOT}/goal_maps/{domain}"
-    goal_maps_set = [i for i in range(0, len(sorted(os.listdir(goal_maps_root_dir))[:1]))]
+    goal_maps_set = [i for i in range(0, len(sorted(os.listdir(goal_maps_root_dir))[:50]))]
+    print(f"goal_maps_set: {goal_maps_set}")
+    img_dir = "/home/jupyter-msiper/bootstrapping-pcgrl/data/loderunner/images"
+    shutil.rmtree(img_dir)
+    os.mkdir(img_dir)
+    with open(f"{img_dir}/goal_maps_used.txt", "w") as f:
+        for goal_map_idx in goal_maps_set:
+            f.write(str(goal_map_idx))
+            f.write("\n")
     prob_obj = DOMAIN_TO_PROB_OBJ_MAP[domain]()
     random.shuffle(goal_maps_set)
     goal_set_idxs = goal_maps_set
     rng, _ = utils.np_random(None)
     char_to_string_tiles_map = DOMAIN_TO_CHAR_TO_STR_TILE_MAP[domain]
     str_to_int_tiles_map = DOMAIN_TO_INT_TILE_MAP[domain]
+    int_to_str_tiles_map = {v:k for k,v in str_to_int_tiles_map.items()}
     start_maps = [
         gen_random_map(
             rng,
@@ -315,98 +329,75 @@ def gen_trajectories(domain, num_episodes, mode_of_output, action_dim, obs_dim, 
     goal_maps = [
         find_closest_goal_map(start_map, goal_set_idxs, goal_maps_root_dir, char_to_string_tiles_map, str_to_int_tiles_map) for start_map in start_maps
     ]
+    xys = []
+    for row_i, row in enumerate(start_maps[0]):
+        for col_i, col in enumerate(row):
+            xys.append((row_i, col_i))
     
     action_dim = (action_dim,)
     obs_dim = (obs_dim, obs_dim, action_dim[0])
     reward_approximator_trajectory = []
+    freq_action_dict = defaultdict(int)
+    labels_dict_for_csv = {"episode_id": [], "image_path": [], "action": [], "reward": []}
+    for k,v in char_to_string_tiles_map.items():
+        freq_action_dict[v] = 0
+        
     
     for epsiode_num, (start_map, goal_map) in enumerate(zip(start_maps, goal_maps)):
-        next_states, states, actions, returns, dones, is_starts, rewards = gen_pod_transitions(start_map, goal_map, traj_len, obs_dim, prob_obj=prob_obj, str_to_int_map=str_to_int_tiles_map)
-        for next_state, state, action, ret, done, is_start, reward in zip(next_states, states, actions, returns, dones, is_starts, rewards):
-            reward_approximator_trajectory.append({
-                "next_state": next_state,
-                "state": state,
-                "action": action,
-                "return": ret,
-                "done": done,
-                "is_start": is_start,
-                "rewards": reward
-            })
+        next_states, states, actions, returns, dones, is_starts, rewards = gen_pod_transitions(start_map, goal_map, traj_len, obs_dim, prob_obj=prob_obj, str_to_int_map=str_to_int_tiles_map, xys=xys)
+        
+        # convert the state to jpg image
+        for next_state, state, action, _return, done, is_start, reward in zip(next_states, states, actions, returns, dones, is_starts, rewards):
+            str_map = convert_int_map_to_str_map(state, int_to_str_tiles_map)
+            img = prob_obj.render(str_map)
+            # import pdb; pdb.set_trace()
+            # increment the freq_action_dict with the action
+            action_str = int_to_str_tiles_map[action]
+            freq_action_dict[action_str] += 1
+            
+            # get the image filename (the action as string + <action_as_int>.jpg)
+            img_filename = f"{action_str}{freq_action_dict[action_str]}.jpg"
+            # Add the image filename and the action_as_int to labels_dict_for_csv
+            labels_dict_for_csv["episode_id"].append(epsiode_num+1)
+            labels_dict_for_csv["image_path"].append(img_filename)
+            labels_dict_for_csv["action"].append(action)
+            labels_dict_for_csv["reward"].append(reward)
 
-        print(f"generated {epsiode_num+1} episodes")
+            
+            # save the image in the img_dir
+            img = img.convert('RGB')
+            img.save(f"{img_dir}/{img_filename}")
+        
+    df = pd.DataFrame(labels_dict_for_csv)
+    df.to_csv(f"{img_dir}/labels.csv", index=False)
+
     
-    tuple_trajectories = []
-    for json_dict in reward_approximator_trajectory:
-        ret = json_dict["return"]
-        done = json_dict["done"]
-        if mode_of_output == "onehot":
-            action_oh = [0]*action_dim[0]
-            action_oh[json_dict["action"]] = 1
-            tuple_trajectories.append((convert_state_to_onehot(json_dict["next_state"], obs_dim, action_dim[0]), convert_state_to_onehot(json_dict["state"], obs_dim, action_dim[0]), np.array(action_oh), np.array([ret]), np.array([done]), np.array([json_dict["is_start"]]), np.array([json_dict["rewards"]])))
-        else:
-            tuple_trajectories.append((json_dict["next_state"], json_dict["state"], json_dict["action"], np.array([ret]), np.array([done]), np.array([json_dict["is_start"]]), np.array([json_dict["rewards"]])))
-    
-    random.shuffle(tuple_trajectories)
-
-    if mode_of_output == "onehot":
-        # import pdb; pdb.set_trace()
-        expert_observations = np.empty((len(tuple_trajectories),) + obs_dim)
-        expert_next_observations = np.empty((len(tuple_trajectories),) + obs_dim)
-        expert_actions = np.empty((len(tuple_trajectories),) + action_dim)
-    else:
-        expert_observations = np.empty((len(tuple_trajectories),) + (obs_dim,obs_dim,))
-        expert_next_observations = np.empty((len(tuple_trajectories),) + (obs_dim,obs_dim,))
-        expert_actions = np.empty((len(tuple_trajectories),) + (1,))    
-
-    expert_returns = np.empty((len(tuple_trajectories),) + (1,))
-    expert_dones = np.empty((len(tuple_trajectories),) + (1,))
-    expert_is_starts = np.empty((len(tuple_trajectories),) + (1,))
-    expert_rewards = np.empty((len(tuple_trajectories),) + (1,))
-
-    reward_approximator_trajectory.append({
-        "next_state": next_state,
-        "state": state,
-        "action": action,
-        "rewards": ret,
-        "done": done,
-        "is_start": is_start,
-        "rewards": rewards
-    })
-
-    for i, (next_obs, obs, act, returns, done, is_start, reward) in enumerate(tuple_trajectories):
-        expert_next_observations[i] = next_obs
-        expert_observations[i] = obs
-        expert_actions[i] = act
-        expert_rewards[i] = reward
-        expert_dones[i] = done
-        expert_is_starts[i] = is_start
-        expert_rewards[i] = reward
-
-    numpy_archive_filename = f"{PROJECT_ROOT}/data/{domain}/pod_trajs_{datetime.datetime.now()}.npz"
-    np.savez_compressed(
-        numpy_archive_filename,
-        actions=expert_actions,
-        episode_returns=expert_returns,
-        rewards=expert_rewards,
-        obs=expert_observations,
-        episode_starts=expert_is_starts
-    )
-
-
-    print(f"Saved file as {numpy_archive_filename}")
-    
-# python gen_pod_traj.py --domain loderunner --num_episodes 100 --mode_of_output onehot --action_dim 8 --obs_dim 64 --traj_len 704
+# PROJECT_ROOT=/home/jupyter-msiper/bootstrapping-pcgrl python gen_pod_traj_imgs.py --domain loderunner --num_episodes 10 --mode_of_output image --action_dim 8 --obs_dim 64 --traj_len 5
 def get_args():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("-d", "--domain", help="domain with which to run PoD", type=str, default="loderunner", choices=["lego", "loderunner", "zelda"])
     argparser.add_argument("-n", "--num_episodes", help="number of episodes to run PoD", type=int, default="loderunner")
-    argparser.add_argument("-m", "--mode_of_output", help="Output mode of the PoD algorithm", type=str, default="onehot", choices=["onehot", "integer", "image", "string"])
+    argparser.add_argument("-m", "--mode_of_output", help="Output mode of the PoD algorithm", type=str, default="image", choices=["onehot", "integer", "image", "string"])
     argparser.add_argument("-a", "--action_dim", help="Action dimension", type=int)
     argparser.add_argument("-o", "--obs_dim", help="Observation dimension", type=int)
     argparser.add_argument("-t", "--traj_len", help="Trajectory length", type=int)
     
     return argparser.parse_args()
     
+
+import base64
+from io import BytesIO
+from PIL import Image
+
+def pil_to_base64(pil_img):
+    """Convert a PIL Image to base64 string."""
+    img_buffer = BytesIO()
+    pil_img.save(img_buffer, format="JPEG")  # Adjust format as needed
+    byte_data = img_buffer.getvalue()
+    base64_str = base64.b64encode(byte_data).decode('utf-8')
+    return base64_str
+
+
 
 def gen_pod_trajectories(args):
     gen_trajectories(args.domain, args.num_episodes, args.mode_of_output, args.action_dim, args.obs_dim, args.traj_len)

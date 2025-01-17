@@ -3,6 +3,10 @@ import math
 import os
 import copy
 
+PROJECT_ROOT = os.getenv("PROJECT_ROOT")
+if not PROJECT_ROOT:
+    raise RuntimeError("The env var `PROJECT_ROOT` is not set.")
+
 def calc_tp_count(lvl, p_size, border_value=-1):
     padded_lvl = np.pad(lvl, p_size, constant_values=border_value)
     pattern_dict = {}
@@ -115,7 +119,7 @@ def get_str_lvl(level):
 #get tile-pattern kl divergence score for the level
 def get_tpkldiv(lvl, window=2, w=0.5):
     import statistics
-    path = "/content/bootstrapping-pcgrl/goal_maps/loderunner/"
+    path = f"{PROJECT_ROOT}/goal_maps/loderunner/"
     targets =  ['Level 1.txt']
     
     score = []
